@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HireScope | GitHub Hiring Insights</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="./assets/icons/hirescope-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-overlay"></div>
+    <main class="shell">
+      <section id="homeScreen" class="screen">
+        <header class="hero">
+          <div class="brand-row">
+            <img
+              src="./assets/icons/hirescope-icon.png"
+              alt="HireScope logo"
+              class="brand-icon"
+            />
+            <div class="brand-copy">
+              <h1>HireScope</h1>
+              <p class="subtitle">
+                Turn a GitHub profile into direct hiring signal: scores, strengths, weaknesses, and a final
+                recommendation.
+              </p>
+            </div>
+          </div>
+          <ul class="promise-list">
+            <li>Accepts a GitHub username and analyzes representative repositories.</li>
+            <li>Returns scores, strengths, weaknesses, highlights, improvements, and a recommendation.</li>
+          </ul>
+        </header>
+
+        <section class="panel input-panel">
+          <form id="analyzeForm" autocomplete="off">
+            <label for="githubInput">GitHub Username or URL</label>
+            <input
+              id="githubInput"
+              name="githubInput"
+              type="text"
+              placeholder="e.g. torvalds or https://github.com/torvalds"
+              required
+            />
+            <label for="roleInput">Target Role</label>
+            <select id="roleInput" name="roleInput">
+              <option value="recruiter" selected>Recruiter</option>
+              <option value="developer">Developer</option>
+              <option value="other">Other</option>
+            </select>
+
+            <div id="otherRoleWrap" class="hidden">
+              <label for="otherRoleInput">Other Role</label>
+              <input
+                id="otherRoleInput"
+                name="otherRoleInput"
+                type="text"
+                placeholder="e.g. Data Engineer, Engineering Manager"
+              />
+            </div>
+
+            <div class="external-context">
+              <label for="contextLinkUrl1">Context Links (Optional)</label>
+              <div id="contextLinksList" class="context-links-list">
+                <input
+                  id="contextLinkUrl1"
+                  class="context-link-url"
+                  name="contextLinkUrl[]"
+                  type="url"
+                  placeholder="https://example.com/profile"
+                />
+              </div>
+              <button id="addContextLinkBtn" type="button" class="ghost-btn add-link-btn">
+                + Add Another Link
+              </button>
+              <p class="field-note">
+                Optional links are fetched for public metadata and passed into hireability reasoning as supplemental context. Some
+                sites (for example, LinkedIn) are auth-gated and may return limited or no public data.
+              </p>
+            </div>
+
+            <label for="contextInput">Extra Context (Optional)</label>
+            <textarea
+              id="contextInput"
+              name="contextInput"
+              placeholder="Examples: Recruiter screen: evaluate this candidate for production readiness and collaboration signals. Developer self-review: identify architecture, testing, and maintainability gaps before interviews."
+              rows="4"
+            ></textarea>
+
+            <button id="analyzeBtn" type="submit">
+              <span class="analyze-btn-label">Analyze</span>
+            </button>
+          </form>
+          <p id="errorText" class="error hidden"></p>
+        </section>
+      </section>
+
+      <section id="loadingScreen" class="screen hidden">
+        <article class="panel loading-panel">
+          <div class="scope-loader" aria-hidden="true"></div>
+          <p class="loading-title">Building your HireScope report</p>
+          <p id="loadingCopy" class="loading-copy">
+            Scanning repositories and generating hiring insights...
+          </p>
+        </article>
+      </section>
+
+      <section id="reportScreen" class="screen hidden">
+        <div class="report-actions">
+          <button id="backBtn" type="button" class="ghost-btn arrow-btn">
+            <span aria-hidden="true">←</span>
+            <span>Check Another GitHub Profile</span>
+          </button>
+        </div>
+
+        <section id="reportSection">
+          <article class="panel profile-card">
+            <div class="profile-head">
+              <img id="profileAvatar" alt="GitHub avatar" />
+              <div>
+                <h2 id="profileName">-</h2>
+                <p id="profileUsername" class="mono">-</p>
+                <a id="profileLink" href="#" target="_blank" rel="noreferrer noopener"
+                  >Open GitHub Profile</a
+                >
+              </div>
+            </div>
+            <p id="profileBio" class="profile-bio"></p>
+            <p id="roleSummary" class="role-summary"></p>
+            <div class="kpis">
+              <div><span id="kpiRepos">0</span>Public Repos</div>
+              <div><span id="kpiFollowers">0</span>Followers</div>
+              <div><span id="kpiFollowing">0</span>Following</div>
+            </div>
+          </article>
+
+          <section class="report-group">
+            <h2 class="report-group-title">GitHub Feedback</h2>
+            <div class="report-grid feedback-grid">
+              <article class="panel feedback-selection">
+                <h3>Selection Rationale</h3>
+                <ul id="selectionList" class="bullet-list compact"></ul>
+              </article>
+
+              <article class="panel feedback-evidence">
+                <h3>Deterministic Evidence</h3>
+                <ul id="evidenceList" class="bullet-list compact"></ul>
+              </article>
+
+              <article class="panel feedback-external">
+                <h3>External Context Signals</h3>
+                <ul id="externalContextList" class="bullet-list compact"></ul>
+              </article>
+
+              <article class="panel feedback-strengths">
+                <h3>Strengths</h3>
+                <ul id="strengthsList" class="bullet-list"></ul>
+              </article>
+
+              <article class="panel feedback-weaknesses">
+                <h3>Weaknesses</h3>
+                <ul id="gapsList" class="bullet-list"></ul>
+              </article>
+
+              <article class="panel feedback-highlights">
+                <h3>Technical Highlights</h3>
+                <ul id="highlightsList" class="bullet-list"></ul>
+              </article>
+
+              <article class="panel feedback-growth">
+                <h3>Growth Areas</h3>
+                <ul id="growthList" class="bullet-list"></ul>
+              </article>
+
+              <article class="panel repo-findings-panel">
+                <h3>Repo-by-Repo Findings</h3>
+                <ul id="repoFindingsList" class="bullet-list compact"></ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="report-group">
+            <h2 class="report-group-title">Hireability</h2>
+            <div class="report-grid hireability-grid">
+              <article class="panel summary-panel">
+                <h3>Executive Summary</h3>
+                <div id="summaryText" class="md-content">-</div>
+              </article>
+
+              <article class="panel scoreboard-panel">
+                <h3>Scoreboard</h3>
+                <p id="scoreMethodText" class="small-copy"></p>
+                <div id="scoreboard" class="score-grid"></div>
+                <div class="chart-wrap">
+                  <canvas id="scoreChart"></canvas>
+                </div>
+                <p id="chartStatusText" class="small-copy hidden"></p>
+              </article>
+
+              <article class="panel role-impact-panel">
+                <h3>Role Impact</h3>
+                <div id="roleImpactText" class="md-content">-</div>
+              </article>
+
+              <article class="panel recommendation-panel">
+                <h3>Hiring Recommendation</h3>
+                <p class="decision" id="decisionText">-</p>
+                <p id="seniorityText"></p>
+                <div id="reasoningText" class="md-content"></div>
+                <div>
+                  <h4>Role Fit</h4>
+                  <ul id="roleFitList" class="bullet-list"></ul>
+                </div>
+              </article>
+
+              <article class="panel checklist-panel">
+                <h3>Improvement Checklist</h3>
+                <ul id="checklistList" class="bullet-list"></ul>
+              </article>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
