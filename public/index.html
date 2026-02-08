@@ -27,14 +27,13 @@
             <div class="brand-copy">
               <h1>HireScope</h1>
               <p class="subtitle">
-                Turn a GitHub profile into direct hiring signal: scores, strengths, weaknesses, and a final
-                recommendation.
+                Generate a comprehensive report for a GitHub profile.
               </p>
             </div>
           </div>
           <ul class="promise-list">
-            <li>Accepts a GitHub username and analyzes representative repositories.</li>
-            <li>Returns scores, strengths, weaknesses, highlights, improvements, and a recommendation.</li>
+            <li>A tool that can be used for developers to evaluate their own GitHub profiles, or hiring managers to evaluate candidates.</li>
+             <li>Accepts a GitHub username and analyzes representative repositories.</li>
           </ul>
         </header>
 
@@ -45,51 +44,45 @@
               id="githubInput"
               name="githubInput"
               type="text"
-              placeholder="e.g. torvalds or https://github.com/torvalds"
+              placeholder="Example: yourgitusername or https://github.com/yourgitusername"
               required
             />
-            <label for="roleInput">Target Role</label>
+            <label for="roleInput">Evaluation Mode</label>
             <select id="roleInput" name="roleInput">
               <option value="recruiter" selected>Recruiter</option>
               <option value="developer">Developer</option>
-              <option value="other">Other</option>
             </select>
-
-            <div id="otherRoleWrap" class="hidden">
-              <label for="otherRoleInput">Other Role</label>
-              <input
-                id="otherRoleInput"
-                name="otherRoleInput"
-                type="text"
-                placeholder="e.g. Data Engineer, Engineering Manager"
-              />
-            </div>
+            <p class="field-note">
+              Choose Recruiter to evaluate a candidate for hiring fit. Choose Developer to self-evaluate your own GitHub profile.
+            </p>
 
             <div class="external-context">
               <label for="contextLinkUrl1">Context Links (Optional)</label>
               <div id="contextLinksList" class="context-links-list">
-                <input
-                  id="contextLinkUrl1"
-                  class="context-link-url"
-                  name="contextLinkUrl[]"
-                  type="url"
-                  placeholder="https://example.com/profile"
-                />
+                <div class="context-link-row">
+                  <input
+                    id="contextLinkUrl1"
+                    class="context-link-url"
+                    name="contextLinkUrl[]"
+                    type="url"
+                    placeholder="https://example.com/profile"
+                  />
+                </div>
               </div>
               <button id="addContextLinkBtn" type="button" class="ghost-btn add-link-btn">
                 + Add Another Link
               </button>
               <p class="field-note">
-                Optional links are fetched for public metadata and passed into hireability reasoning as supplemental context. Some
-                sites (for example, LinkedIn) are auth-gated and may return limited or no public data.
+                Context Links (such as portfolio sites) can be fetched as supplemental context for hireability reasoning. 
+                Please note that some sites (such as LinkedIn) are auth-gated and may return no public data.
               </p>
             </div>
 
-            <label for="contextInput">Extra Context (Optional)</label>
+            <label for="contextInput">Context (Optional)</label>
             <textarea
               id="contextInput"
               name="contextInput"
-              placeholder="Examples: Recruiter screen: evaluate this candidate for production readiness and collaboration signals. Developer self-review: identify architecture, testing, and maintainability gaps before interviews."
+              placeholder="Add context for a better evaluation of role-specific abilities and skills. Example: Prioritize skills in backend architecture."
               rows="4"
             ></textarea>
 
@@ -121,6 +114,10 @@
 
         <section id="reportSection">
           <article class="panel profile-card">
+            <button id="downloadPdfBtn" type="button" class="ghost-btn pdf-btn" disabled>
+              <span class="pdf-btn-icon" aria-hidden="true">📎</span>
+              <span>Download as PDF</span>
+            </button>
             <div class="profile-head">
               <img id="profileAvatar" alt="GitHub avatar" />
               <div>
@@ -132,12 +129,6 @@
               </div>
             </div>
             <p id="profileBio" class="profile-bio"></p>
-            <p id="roleSummary" class="role-summary"></p>
-            <div class="kpis">
-              <div><span id="kpiRepos">0</span>Public Repos</div>
-              <div><span id="kpiFollowers">0</span>Followers</div>
-              <div><span id="kpiFollowing">0</span>Following</div>
-            </div>
           </article>
 
           <section class="report-group">
@@ -210,11 +201,16 @@
 
               <article class="panel recommendation-panel">
                 <h3>Hiring Recommendation</h3>
-                <p class="decision" id="decisionText">-</p>
-                <p id="seniorityText"></p>
+                <div class="recommendation-block">
+                  <p class="recommendation-kicker">Decision Overview</p>
+                  <p class="decision" id="decisionText">-</p>
+                </div>
+                <h4 class="recommendation-section-title">Assessment Summary</h4>
                 <div id="reasoningText" class="md-content"></div>
+                <h4 class="recommendation-section-title">Context-Aware Summary</h4>
+                <div id="recommendationContextText" class="md-content"></div>
                 <div>
-                  <h4>Role Fit</h4>
+                  <h4 class="recommendation-section-title">Role Fit</h4>
                   <ul id="roleFitList" class="bullet-list"></ul>
                 </div>
               </article>
@@ -230,6 +226,8 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

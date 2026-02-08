@@ -85,12 +85,12 @@ const ROLE_CONFIG = {
   recruiter: {
     label: "Recruiter",
     weights: {
-      codeOrganization: 0.25,
-      projectMaturity: 0.45,
-      consistencyActivity: 0.3,
+      codeOrganization: 0.45,
+      projectMaturity: 0.35,
+      consistencyActivity: 0.2,
     },
     impactNote:
-      "Prioritizes hiring-readiness signals like documentation depth, project completion, and sustained activity.",
+      "Applies a senior-engineer hiring lens: architecture quality, maintainability, delivery maturity, and consistent ownership signals.",
   },
   developer: {
     label: "Developer",
@@ -1159,6 +1159,293 @@ function aggregateProfileScores(repoEvidence, roleConfig) {
   };
 }
 
+function formatLanguageLabel(language) {
+  const normalized = typeof language === "string" ? language.trim().toLowerCase() : "";
+  if (!normalized) return "Unknown";
+
+  const known = {
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+    "c#": "C#",
+    "c++": "C++",
+    "objective-c": "Objective-C",
+    "objective-c++": "Objective-C++",
+    "jupyter notebook": "Jupyter Notebook",
+    html: "HTML",
+    css: "CSS",
+    sql: "SQL",
+  };
+
+  if (known[normalized]) return known[normalized];
+
+  return normalized
+    .split(/[\s_-]+/)
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ""))
+    .join(" ");
+}
+
+function inferRoleFitLinesFromRepoEvidence(repoEvidence) {
+  if (!Array.isArray(repoEvidence) || repoEvidence.length === 0) return [];
+
+  const languageWeights = {};
+  const keywordWeights = {
+    frontend: 0,
+    backend: 0,
+    mobile: 0,
+    data: 0,
+    devops: 0,
+  };
+
+  const keywordPatterns = {
+    frontend:
+      /(front[-\s]?end|react|next\.?js|vue|angular|svelte|ui|ux|client|webapp|web-app|component)/i,
+    backend:
+      /(back[-\s]?end|api|server|service|microservice|graphql|database|db|express|fastapi|django|flask|spring|nestjs|auth)/i,
+    mobile: /(mobile|android|ios|react[-\s]?native|flutter|swiftui|xcode)/i,
+    data:
+      /(data|etl|pipeline|analytics|notebook|ml|machine learning|model|pytorch|tensorflow|scikit|spark)/i,
+    devops:
+      /(devops|infra|terraform|kubernetes|k8s|helm|ansible|docker|ci\/cd|ci-cd|workflow|deployment|sre|platform)/i,
+  };
+
+  let totalWeight = 0;
+  let reposWithTests = 0;
+
+  for (const entry of repoEvidence) {
+    const weight = Math.max(1, Number(entry?.selection?.selectionScore || 1));
+    totalWeight += weight;
+
+    const language =
+      typeof entry?.repo?.language === "string" ? entry.repo.language.trim().toLowerCase() : "";
+    if (language && language !== "unknown") {
+      languageWeights[language] = (languageWeights[language] || 0) + weight;
+    }
+
+    if (entry?.signals?.tests?.hasTests) {
+      reposWithTests += 1;
+    }
+
+    const topLevel = Array.isArray(entry?.signals?.topLevel) ? entry.signals.topLevel : [];
+    const repoText = [entry?.repo?.name, entry?.repo?.description, ...topLevel]
+      .filter((value) => typeof value === "string" && value.trim())
+      .join(" ")
+      .toLowerCase();
+
+    if (!repoText) continue;
+
+    for (const [key, pattern] of Object.entries(keywordPatterns)) {
+      if (pattern.test(repoText)) {
+        keywordWeights[key] += weight;
+      }
+    }
+  }
+
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) return [];
+
+  const shareForLanguages = (languages) =>
+    languages.reduce((sum, language) => sum + (languageWeights[language] || 0), 0) / totalWeight;
+  const keywordShare = (key) => keywordWeights[key] / totalWeight;
+
+  const frontendSignal =
+    shareForLanguages(["javascript", "typescript", "html", "css", "vue", "svelte"]) * 0.75 +
+    keywordShare("frontend") * 0.25;
+  const backendSignal =
+    shareForLanguages([
+      "python",
+      "java",
+      "go",
+      "rust",
+      "c#",
+      "php",
+      "ruby",
+      "kotlin",
+      "scala",
+      "c++",
+      "javascript",
+      "typescript",
+    ]) *
+      0.7 +
+    keywordShare("backend") * 0.3;
+  const mobileSignal =
+    shareForLanguages(["swift", "kotlin", "objective-c", "objective-c++", "dart", "java"]) * 0.65 +
+    keywordShare("mobile") * 0.35;
+  const dataSignal =
+    shareForLanguages(["python", "jupyter notebook", "r", "scala", "sql"]) * 0.7 +
+    keywordShare("data") * 0.3;
+  const devopsSignal =
+    shareForLanguages(["shell", "dockerfile", "hcl", "makefile", "powershell"]) * 0.65 +
+    keywordShare("devops") * 0.35;
+  const fullStackSignal =
+    Math.min(frontendSignal, backendSignal) * 0.85 +
+    shareForLanguages(["javascript", "typescript"]) * 0.15;
+
+  const roleSignals = [
+    { label: "Full-Stack Engineer", signal: fullStackSignal },
+    { label: "Backend Engineer", signal: backendSignal },
+    { label: "Frontend Engineer", signal: frontendSignal },
+    { label: "Mobile Engineer", signal: mobileSignal },
+    { label: "Data/ML Engineer", signal: dataSignal },
+    { label: "DevOps/Platform Engineer", signal: devopsSignal },
+  ]
+    .map((item) => ({
+      ...item,
+      signal: Math.max(0, Math.min(1, item.signal)),
+    }))
+    .sort((a, b) => b.signal - a.signal);
+
+  let selectedRoles = roleSignals.filter((item) => item.signal >= 0.24).slice(0, 3);
+  if (selectedRoles.length === 0 && roleSignals[0] && roleSignals[0].signal > 0) {
+    selectedRoles = [roleSignals[0]];
+  }
+
+  const topLanguageNotes = Object.entries(languageWeights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(
+      ([language, weight]) => `${formatLanguageLabel(language)} ${Math.round((weight / totalWeight) * 100)}%`
+    );
+
+  if (selectedRoles.length === 0) {
+    const genericEvidence = [];
+    if (topLanguageNotes.length > 0) {
+      genericEvidence.push(`dominant languages: ${topLanguageNotes.join(", ")}`);
+    }
+    genericEvidence.push(`tests detected in ${reposWithTests}/${repoEvidence.length} sampled repos`);
+
+    return [
+      "Possible roles from repository signals: General Software Engineer (specialization signal is limited).",
+      `Role-path evidence: ${genericEvidence.join("; ")}.`,
+    ];
+  }
+
+  const signalTier = (signal) => {
+    if (signal >= 0.6) return "strong";
+    if (signal >= 0.38) return "moderate";
+    return "emerging";
+  };
+
+  const roleSummary = selectedRoles
+    .map((role) => `${role.label} (${signalTier(role.signal)} signal)`)
+    .join(", ");
+
+  const evidenceParts = [];
+  if (topLanguageNotes.length > 0) {
+    evidenceParts.push(`dominant languages: ${topLanguageNotes.join(", ")}`);
+  }
+  evidenceParts.push(`tests detected in ${reposWithTests}/${repoEvidence.length} sampled repos`);
+
+  return [
+    `Possible roles from repository signals: ${roleSummary}.`,
+    `Role-path evidence: ${evidenceParts.join("; ")}.`,
+  ];
+}
+
+function compactSingleLineText(value, maxChars = 220) {
+  if (typeof value !== "string") return "";
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars).replace(/[\s,;:.-]+$/g, "")}...`;
+}
+
+function sentenceCount(value) {
+  const text = compactSingleLineText(value, 2000);
+  if (!text) return 0;
+
+  const matches = text.match(/[^.!?]+[.!?]/g);
+  if (matches && matches.length > 0) return matches.length;
+  return 1;
+}
+
+function normalizeEvaluationModeBlurb(candidate, fallback, context) {
+  const normalized = compactSingleLineText(candidate, 1100);
+  const fallbackNormalized = compactSingleLineText(fallback, 1100);
+  const fallbackValue = fallbackNormalized || "No evaluation-mode introduction returned.";
+
+  if (!normalized) return fallbackValue;
+  const count = sentenceCount(normalized);
+  if (count < 3 || count > 4) return fallbackValue;
+
+  const hasGithubReference = /(github|repository|repositories|repo)/i.test(normalized);
+  if (!hasGithubReference) return fallbackValue;
+
+  const hasUserContext = Boolean(compactSingleLineText(context, 220));
+  const hasContextReference = /(context|requested|emphasis|focus|priorit|guidance)/i.test(normalized);
+  if (hasUserContext && !hasContextReference) return fallbackValue;
+  if (!hasUserContext && !hasContextReference) return fallbackValue;
+
+  return normalized;
+}
+
+function buildEvaluationModeBlurb({ roleConfig, context, repoEvidence, profileScores }) {
+  const roleLabel =
+    roleConfig && typeof roleConfig.label === "string" && roleConfig.label.trim()
+      ? roleConfig.label.trim()
+      : "Recruiter";
+  const impactNote = compactSingleLineText(roleConfig?.impactNote, 280);
+  const repos = Array.isArray(repoEvidence) ? repoEvidence : [];
+  const repoCount = repos.length;
+
+  const languageWeights = {};
+  let totalWeight = 0;
+  let reposWithTests = 0;
+  let totalRecentCommits90d = 0;
+
+  for (const repo of repos) {
+    const weight = Math.max(1, Number(repo?.selection?.selectionScore || 1));
+    totalWeight += weight;
+
+    if (repo?.signals?.tests?.hasTests) {
+      reposWithTests += 1;
+    }
+
+    const recentCommits = Number(repo?.signals?.commitMetrics?.recentCommits90d || 0);
+    totalRecentCommits90d += Number.isFinite(recentCommits) ? recentCommits : 0;
+
+    const language =
+      typeof repo?.repo?.language === "string" ? repo.repo.language.trim().toLowerCase() : "";
+    if (language && language !== "unknown") {
+      languageWeights[language] = (languageWeights[language] || 0) + weight;
+    }
+  }
+
+  const dominantLanguages = Object.entries(languageWeights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([language, weight]) => {
+      const percent = totalWeight > 0 ? Math.round((weight / totalWeight) * 100) : 0;
+      return `${formatLanguageLabel(language)} (${percent}%)`;
+    });
+
+  const sampledRepoNames = repos
+    .map((repo) => (typeof repo?.repo?.name === "string" ? repo.repo.name.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 3);
+
+  const cleanContext = compactSingleLineText(context, 190).replace(/"/g, "'");
+  const overallScore = Number.isFinite(profileScores?.overall) ? profileScores.overall : 0;
+
+  const sentence1 =
+    impactNote && impactNote.endsWith(".")
+      ? impactNote
+      : impactNote
+        ? `${impactNote}.`
+        : `${roleLabel} mode applies deterministic weighting across architecture, project maturity, and activity consistency.`;
+
+  const sentence2 =
+    repoCount > 0
+      ? `GitHub evidence was drawn from ${repoCount} representative repositories${sampledRepoNames.length > 0 ? ` (${sampledRepoNames.join(", ")})` : ""}, showing dominant language signals in ${dominantLanguages.length > 0 ? dominantLanguages.join(", ") : "mixed/undeclared stacks"}, tests in ${reposWithTests}/${repoCount} repos, and ${totalRecentCommits90d} commits over the last 90 days across sampled projects.`
+      : "GitHub evidence was limited because no representative repositories were available for deterministic scoring.";
+
+  const sentence3 = cleanContext
+    ? `The context box emphasis was "${cleanContext}", and this report explicitly used that guidance when interpreting the repository evidence.`
+    : "No extra context was provided in the context box, so interpretation stayed anchored to measurable GitHub repository evidence.";
+
+  const sentence4 = `The overall deterministic readiness score is ${overallScore}/100, so Evaluation Mode: ${roleLabel} frames fit based on role-aligned delivery quality, maturity, and execution consistency.`;
+
+  return [sentence1, sentence2, sentence3, sentence4].join(" ");
+}
+
 function buildEvidenceHighlights(repoEvidence) {
   const highlights = [];
 
@@ -1318,6 +1605,7 @@ Return ONLY valid JSON with this exact schema:
     "senioritySignal": "string",
     "roleFit": ["string"]
   },
+  "evaluationModeBlurb": "string (3-4 sentence intro, must mention how context box input affected interpretation)",
   "improvementChecklist": ["string"],
   "roleImpact": "string"
 }
@@ -1330,6 +1618,7 @@ Rules:
 - Hiring recommendation reasoning must explicitly reference external context results when available.
 - In hiringRecommendation.reasoning, include one sentence prefixed with "External context:" that explains how external links changed (or did not change) the decision.
 - If external links are restricted/unreachable, state that limitation and fall back to GitHub evidence.
+- evaluationModeBlurb must be exactly 3-4 sentences and explicitly mention how user context changed analysis (or explicitly state that no context was provided).
 `.trim();
 }
 async function callGemini(prompt) {
@@ -1406,7 +1695,7 @@ function normalizeRecommendation(recommendation, overallScore) {
   };
 }
 
-function buildFallbackReport({ profileScores, roleConfig, repoEvidence, contextLinks, externalContext }) {
+function buildFallbackReport({ profileScores, roleConfig, context, repoEvidence, contextLinks, externalContext }) {
   const strengths = [];
   const weaknesses = [];
 
@@ -1458,6 +1747,12 @@ function buildFallbackReport({ profileScores, roleConfig, repoEvidence, contextL
           : "Primary risk is limited deterministic depth without full runtime validation.",
     })),
     externalContextSignals: externalSignals,
+    evaluationModeBlurb: buildEvaluationModeBlurb({
+      roleConfig,
+      context,
+      repoEvidence,
+      profileScores,
+    }),
     hiringRecommendation: {
       decision: defaultDecisionFromScore(profileScores.overall),
       roleFit: dedupeRecommendationLines(
@@ -1688,6 +1983,7 @@ app.post("/api/analyze", analysisRateLimiter, async (req, res, next) => {
       aiReport = buildFallbackReport({
         profileScores,
         roleConfig,
+        context,
         repoEvidence: baseProfileAnalysis.evidence.repos,
         contextLinks,
         externalContext,
@@ -1698,6 +1994,7 @@ app.post("/api/analyze", analysisRateLimiter, async (req, res, next) => {
       aiReport.hiringRecommendation || aiReport.recommendation,
       profileScores.overall
     );
+    const inferredRoleFitLines = inferRoleFitLinesFromRepoEvidence(baseProfileAnalysis.evidence.repos);
 
     const externalContextSummary =
       contextLinks.length > 0 ? buildExternalContextRecommendationSummary(externalContext) : null;
@@ -1711,12 +2008,19 @@ app.post("/api/analyze", analysisRateLimiter, async (req, res, next) => {
       roleFit: dedupeRecommendationLines(
         [
           ...(normalizedRecommendation.roleFit || []),
+          ...inferredRoleFitLines,
           ...(!hasExternalRoleFit ? (externalContextSummary?.highlights || []).slice(0, 1) : []),
           !hasExternalRoleFit ? externalContextRecommendation : "",
         ].filter(Boolean)
       ),
       reasoning: mergeRecommendationReasoning(normalizedRecommendation.reasoning, externalContextRecommendation),
     };
+    const fallbackEvaluationModeBlurb = buildEvaluationModeBlurb({
+      roleConfig,
+      context,
+      repoEvidence: baseProfileAnalysis.evidence.repos,
+      profileScores,
+    });
 
     const responsePayload = {
       profile: baseProfileAnalysis.profile,
@@ -1774,6 +2078,11 @@ app.post("/api/analyze", analysisRateLimiter, async (req, res, next) => {
               ? aiReport.externalContextSignals
               : buildExternalContextSignals(externalContext)
             : [],
+        evaluationModeBlurb: normalizeEvaluationModeBlurb(
+          aiReport.evaluationModeBlurb,
+          fallbackEvaluationModeBlurb,
+          context
+        ),
         recommendation,
         improvementChecklist: Array.isArray(aiReport.improvementChecklist)
           ? aiReport.improvementChecklist

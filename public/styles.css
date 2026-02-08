@@ -261,7 +261,6 @@ body {
   margin: 0;
 }
 
-#otherRoleWrap,
 .external-context {
   display: grid;
   gap: 10px;
@@ -284,8 +283,41 @@ body {
   gap: 8px;
 }
 
+.context-link-row {
+  position: relative;
+}
+
 .context-link-url {
   width: 100%;
+}
+
+.context-link-row.has-remove .context-link-url {
+  padding-right: 92px;
+}
+
+button.context-link-remove {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 70px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 129, 156, 0.42);
+  background: rgba(42, 6, 14, 0.9);
+  color: #ffdbe6;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.context-link-remove:hover {
+  transform: translateY(-50%);
+  box-shadow: 0 8px 16px rgba(108, 12, 31, 0.34);
 }
 
 .add-link-btn {
@@ -294,9 +326,21 @@ body {
   font-size: 0.82rem;
 }
 
+.input-panel .add-link-btn {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 11px 14px;
+}
+
 label {
   font-size: 0.88rem;
   color: #ffc7cf;
+}
+
+.input-panel label {
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 input,
@@ -309,6 +353,14 @@ textarea {
   padding: 12px;
   border-radius: 10px;
   font: inherit;
+}
+
+.input-panel input,
+.input-panel select,
+.input-panel textarea {
+  font-size: 1.15rem;
+  line-height: 1.5;
+  padding: 14px 16px;
 }
 
 input:focus,
@@ -329,6 +381,11 @@ textarea::placeholder {
   color: #e9a9a3;
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+.input-panel .field-note {
+  font-size: 0.98rem;
+  line-height: 1.55;
 }
 
 button {
@@ -480,6 +537,42 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 10px 14px;
+  letter-spacing: 0.01em;
+  border: 1px solid rgba(255, 228, 236, 0.95);
+  background: linear-gradient(135deg, rgba(255, 244, 248, 0.95), rgba(255, 215, 226, 0.92));
+  color: #5a1324;
+  box-shadow:
+    0 10px 22px rgba(57, 7, 18, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+.pdf-btn .pdf-btn-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.pdf-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 249, 252, 0.98), rgba(255, 225, 234, 0.95));
+  box-shadow:
+    0 12px 24px rgba(64, 9, 21, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.pdf-btn:disabled {
+  opacity: 0.68;
+  color: rgba(90, 19, 36, 0.75);
+  border-color: rgba(255, 215, 227, 0.74);
+  background: linear-gradient(135deg, rgba(255, 235, 242, 0.84), rgba(248, 199, 215, 0.82));
+  box-shadow: 0 8px 16px rgba(57, 7, 18, 0.2);
+}
+
 .arrow-btn {
   display: inline-flex;
   align-items: center;
@@ -578,7 +671,7 @@ button:disabled {
 #reportSection .panel.is-collapsible {
   max-height: var(--collapsed-height, 300px);
   overflow: hidden;
-  padding-bottom: 58px;
+  padding-bottom: 60px;
 }
 
 #reportSection .panel.is-collapsible::after {
@@ -586,15 +679,13 @@ button:disabled {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 48px;
-  height: 62px;
+  bottom: 0;
+  height: 52px;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(37, 4, 10, 0) 0%,
-    rgba(37, 4, 10, 0.78) 55%,
-    rgba(37, 4, 10, 0.98) 100%
-  );
+  background: #55101d;
+  border-top: 1px solid rgba(255, 152, 166, 0.28);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 #reportSection .panel.is-collapsible.is-expanded {
@@ -610,11 +701,12 @@ button:disabled {
 .expand-btn {
   position: absolute;
   right: 14px;
-  bottom: 12px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 120, 132, 0.48);
-  background: linear-gradient(135deg, rgba(96, 14, 26, 0.96), rgba(142, 24, 41, 0.96));
+  bottom: 9px;
+  z-index: 2;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 171, 184, 0.38);
+  background: #7c172a;
   color: #fff2f2;
   font-size: 0.79rem;
   font-weight: 700;
@@ -633,12 +725,21 @@ button:disabled {
 
 .profile-card {
   width: 100%;
+  padding-top: 62px;
+}
+
+.profile-card .pdf-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
 }
 
 .profile-head {
   display: flex;
   gap: 14px;
   align-items: center;
+  padding-right: 220px;
 }
 
 .profile-head img {
@@ -661,12 +762,6 @@ button:disabled {
 .profile-bio {
   margin-top: 12px;
   color: var(--muted);
-}
-
-.role-summary {
-  margin: 10px 0 2px;
-  color: #f3c099;
-  font-size: 0.86rem;
 }
 
 .kpis {
@@ -804,6 +899,29 @@ h4 {
   margin: 16px 0 6px;
 }
 
+.recommendation-section-title {
+  margin: 16px 0 8px;
+  font-size: 1.14rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #ffd9be;
+}
+
+.recommendation-block {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recommendation-kicker {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffbf9a;
+}
+
 .bullet-list {
   margin: 0;
   padding-left: 20px;
@@ -932,9 +1050,18 @@ h4 {
 }
 
 .decision {
-  font-size: 1.2rem;
-  font-weight: 800;
+  font-size: clamp(1.5rem, 2.2vw, 2.05rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
   color: var(--accent-2);
+  margin: 0;
+}
+
+.recommendation-panel .md-content p,
+.recommendation-panel .bullet-list li {
+  font-size: 1.08rem;
+  line-height: 1.52;
 }
 
 .decision.strong {
@@ -1020,6 +1147,21 @@ a {
 }
 
 @media (max-width: 640px) {
+  .profile-card {
+    padding-top: 16px;
+  }
+
+  .profile-card .pdf-btn {
+    position: static;
+    justify-self: end;
+    margin-bottom: 10px;
+    align-self: flex-end;
+  }
+
+  .profile-head {
+    padding-right: 0;
+  }
+
   .profile-head {
     align-items: flex-start;
   }
